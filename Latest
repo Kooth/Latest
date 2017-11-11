@@ -1,0 +1,1562 @@
+#!/bin/ksh
+
+#	@(#)	%M% version %I%
+
+#	@(#)	(c) 2009 C2 Computing
+
+#	@(#)	Full path:	/home/kooth/bin/
+#	@(#)	Author:		Keith E. Cooper
+#	@(#)	Created:	25 Jun 2009
+
+#	@(#)	Description:	This script finds the latest file and views it.
+#	@(#)		NOTE: This is based upon my old Latest script.
+
+#	@(#)	History:
+#	@(#)		KEC	25 Jun 2009 - Creation.
+#	@(#)		KEC	10 Apr 2013 - Modified to be smarter about where things are;
+#	@(#)			I also added functionality for pcregrep.
+#	@(#)		KEC	25 Feb 2014 - Added LX.
+#	@(#)		KEC	10 Jan 2015 - Added support for directories.
+
+#CmdMap="LC=cat|LE=vi|LF=find|LG=grep|LH=hexd|LL=less|LM=more|LP=pg|LR=pcregrep|LT=tail|LV=view|LX=Hexd"
+
+CmdMap1="LC=cat|LE=vi|LF=find|LG=grep|LH=hexd|LL=less|LM=more|LP=pg"
+
+CmdMap2="LR=pcregrep|LT=tail|LV=view|LX=Hexd"
+
+
+DirMap="DC=cd|DE=echo|DF=echo|DL=ls" 
+
+CmdMap="${CmdMap1}|${CmdMap2}|${DirMap}"
+
+
+
+AddToArgList()
+	{
+	if [ -z "${ArgList}" ]
+	then
+		ArgList="${1}"
+	else
+		ArgList="${ArgList} ${1}"
+	fi
+
+	}
+		#	AddToArgList
+
+
+AddToFlagList()
+	{
+	if [ -z "${FlagList}" ]
+	then
+		FlagList="${1}"
+	else
+		FlagList="${FlagList} ${1}"
+	fi
+
+	}
+		#	AddToFlagList
+
+
+#
+#	BuildCmds()
+#
+#	This function checks for the programs in ${DefaultCmds} and builds the
+#	variable "Cmds" that will contain those commands from ${DefaultCmds} that it
+#	can find.
+
+BuildCmds()
+	{
+	for C in ${DefaultCmds}
+	do
+		Real=$(LookupReal $C)
+
+		which ${Real} | ${NAWK} '
+			{
+			if( 1 == NR )
+				{
+				Funk = "BuildCmds()";
+
+				if( Debug >= 1 )
+					printf( "%s: Beginning ...\n", Funk ) >> Log;
+
+				if( Debug >= 3 )
+					{
+					printf( "\t%s: Command = [%s]\n", Funk, Command ) >> Log;
+
+					printf( "\t%s: Real = [%s]\n", Funk, Real ) >> Log;
+
+					}	#	if( Debug >= 3 )
+
+				DQ = sprintf( "%c", 34 );
+
+				if( 10 == Delimiter )
+					{
+					DelimiterChar = 10;
+
+					DelimiterString = "\n";
+
+					}	#	if( 10 == Delimiter )
+				else
+					{
+					DelimiterChar = 32;
+
+					DelimiterString = " ";
+
+					}	#	if( 10 != Delimiter )
+
+				if( Debug >= 9 )
+					printf( "\t%s: DelimiterString = [%s] (0x%x)\n",
+						Funk, DelimiterString, DelimiterChar ) >> Log;
+
+				bFound = 1;
+
+				}	#	if( 1 == NR )
+
+		########################################################################
+		#                                  M A I N                             #
+		########################################################################
+
+			sFunk = sprintf( "\t%s - LN %d", Funk, NR );
+
+			if( Debug >= 9 )
+				{
+				printf( "Input:\n[%s]\n", $0 ) >> Log;
+
+				printf( "%s: Full dump of %d fields follows:\n",
+					sFunk, NF ) >> Log;
+
+				for( i = 1; i <= NF; i++ )
+					{
+					printf( "\t\tField[ %d ] = <%s>\n", i, $i ) >> Log;
+
+					}	#	for( i <= NF )
+
+				printf( "%s: End of full dump.\n\n", sFunk ) >> Log;
+
+				}	#	if( Debug >= 9 )
+
+			#	See if we have any 'Magic' input:
+
+			if( NF >= 3 )
+				{
+				if( Real == $1 && "not" == $2 && "found" == $3 )
+					{
+					bFound = 0;
+
+					}	#	"Command not found"
+
+				if( Debug >= 9 )
+					{
+					printf( "\tNF >= 3 (%d):\n", NF ) >> Log;
+
+					if( Real == $1 )
+						printf( "\t\tTest 1: Real == $1 ([%s] == [%s])\n",
+							Real, $1 ) >> Log;
+
+					if( "not" == $2 )
+						printf( "\t\tTest 2: %cnot%c == $2 ([%s] == [%s])\n",
+							DQ, DQ, "not", $2 ) >> Log;
+
+					if( "found" == $3 )
+						printf( "\t\tTest 3: %cfound%c == $3 ([%s] == [%s])\n",
+							DQ, DQ, "found", $3 ) >> Log;
+
+					}	#	if( Debug >= 9 )
+
+				}	#	if( NF >= 3 )
+
+			if( NF >= 4 )
+				{
+				if( "no" == $1 && Real == $2 && "in" == $3 )
+					{
+					bFound = 0;
+
+					}	#	"no Real in"
+
+				if( Debug >= 9 )
+					{
+					printf( "\tNF >= 4 (%d):\n", NF ) >> Log;
+
+					if( "no" == $1 )
+						printf( "\t\tTest 1: %cno%c == $1 ([%s] == [%s])\n",
+							DQ, DQ, "no", $1 ) >> Log;
+
+					if( Real == $2 )
+						printf( "\t\tTest 2: Real == $2 ([%s] == [%s])\n",
+							Real, $2 ) >> Log;
+
+					if( "in" == $3 )
+						printf( "\t\tTest 3: %cfound%c == $3 ([%s] == [%s])\n",
+							DQ, DQ, "in", $3 ) >> Log;
+
+					}	#	if( Debug >= 9 )
+
+				}	#	if( NF >= 4 )
+
+			}
+				#	main()
+		
+		END \
+			{
+			if( Debug >= 1 )
+				printf( "%s: Ending: And I %s %s for %s.\n\n",
+					Funk,
+					bFound ? "found" : "did not find", 
+					Real, Command ) >> Log;
+
+			#	ACTUAL OUTPUT:
+
+			if( bFound )
+				printf( "%s%s", Command, DelimiterString );
+
+			}' Command="${C}" Real=${Real} Delimiter=${Delimiter} \
+				Debug=${Debug} Log=${Log}
+
+	done
+
+	}
+		#	BuildCmds()
+
+
+#
+#	CheckLink()
+#
+#	This function checks to see if the argument it receives is a link to the
+#	"Latest" script.
+#
+#	Returns:
+#		  0:	The file doesn't exist
+#		< 0:	Internal error: ABORT!
+#		> 0:	The file exists.  More info:
+#					 8 - ENOEXEC: The file is not executable
+#					17 - EEXIST:  The file is an exact match for "Latest"
+#					54 - EBADRQC: The file is not a match for "Latest"
+
+CheckLink()
+	{
+	typeset _Funk="CheckLink()"
+
+	typeset LinkToCheck="${1}"
+
+	typeset -i LatestChksum=$(Chksum ~/bin/Latest)
+
+	typeset -i ThisChksum=0
+
+	typeset -i bContinue=1
+
+	typeset -i erc=-1
+
+	typeset -i rc=-1
+
+	typeset -i xrc=-1
+
+	if [ ${Debug} -ge 1 ]
+	then
+		printf "%s: LinkToCheck: [%s]\n" ${_Funk} ${LinkToCheck} >> ${Log}
+	fi
+
+	test -e ${LinkToCheck}
+
+	erc=$?
+
+	test -x ${LinkToCheck}
+
+	xrc=$?
+
+	if [ ${Debug} -ge 9 ]
+	then
+		printf "File %s: erc = %d; xrc = %d.\n" \
+			${LinkToCheck} ${erc} ${xrc} >> ${Log}
+	fi
+
+	if [ ${erc} -eq 0 ]
+	then
+		if [ ${xrc} -eq 1 ]
+		then
+			rc=${ENOEXEC}		#	ENOEXEC - The file is not executable
+
+			bContinue=0
+		else
+			ThisChksum=$(Chksum ${LinkToCheck})
+
+			if [ ${LatestChksum} -eq ${ThisChksum} ]
+			then
+				rc=${EEXIST}	#	EEXIST - The same version
+
+				bContinue=0
+			fi
+
+		fi
+
+		if [ ${bContinue} -eq 1 -a ${xrc} -eq 0 ]
+		then
+			rc=${EBADRQC}	#	EBADRQC - A different version than is executable
+		fi
+	else
+		rc=0
+	fi
+
+	if [ ${Debug} -ge 9 ]
+	then
+		printf "\trc = %d.\n" ${rc} >> ${Log}
+	fi
+
+	if [ ${Debug} -ge 1 ]
+	then
+		printf "%s: Ending.\n" ${_Funk} >> ${Log}
+
+	fi
+
+	return ${rc}
+
+	}
+		#	CheckLink()
+
+
+Chksum()
+	{
+	cksum "${1}" | ${NAWK} '
+		{
+		printf( "%s", $1 );
+
+		}'
+
+	}
+		#	Chksum()
+
+
+FindFile()
+	{
+	File="$*"
+
+	TheFile=$(ls -rt ${File} | ${NAWK} '
+		{
+		TheFile = $0;
+
+		}
+		END \
+			{
+			#	ACTUAL OUTPUT:
+
+			printf( "%s", TheFile );
+
+			}')
+
+	}
+		#	FindFile()
+
+
+FixType()
+	{
+	echo "${1}" | ${NAWK} '
+		{
+		FirstChar = substr( $1, 1, 1 );
+
+		if( "-" != FirstChar )
+			{
+			S = sprintf( "-%s", $1 );
+
+			}	#	if( "-" != FirstChar )
+		else
+			{
+			s = $1;
+
+			}	#	if( "-" == FirstChar )
+
+		#	ACTUAL OUTPUT:
+
+		printf( "%s", s );
+
+		}' Debug=${Debug} Log=${Log}
+
+	}
+		#	FixType()
+
+
+Help()
+	{
+	cat <<EOF
+NAME
+    ${Script} - Find the latest file and use it.
+
+SYNOPSIS
+    ${Script} [ -A argument(s) ] [ -B bin directory ] [ -F flag(s) ] [ -I ]
+    [ -P PAGER ] [ -d debug level ] [ -f ] [ -h ] [ -j ] [ -t type ]
+    [ file pattern ]
+
+DESCRIPTION
+    The ${Script} script finds the latest (newest) file system object in the
+    current directory.  An optional file pattern may be specified as the
+    last argument on the command line.  UNIX wildcard characters are accepted.
+    By default, a regular file is checked.  The ${Script} script
+    passes the "type" flag to the UNIX find(1) command.
+    
+OPTIONS
+    The following options are supported:
+
+    -A argument     Specifies arguments for this command.
+
+    -B directory    Specifies the directory where shortcuts for this command
+                    are installed (see below).
+
+    -F flags        Specifies flags for this command.
+
+    -I              Specifies to install links for this command (see below).
+
+    -P pager        Specifies the pager program.
+
+    -d debug level  Specifies the debug level.  Any debug is written to a file
+                    named "${Script}.log" in the user's log directory.
+
+    -f              Specifies to force installation when necessary.
+
+    -h              Displays this help and exits.
+
+    -j              Specifies to build the link commands, but not execute them.
+                    This is very handy for testing.
+
+    -t c            Specifies the type of file system object to search.  By
+                    default, an "f" (file) is used.  The type can be one of b,
+                    c, d, D, f, l, p, or s for block special file, character
+                    special file, directory, door, plain file, symbolic link,
+                    fifo (named pipe), or socket, respectively.
+
+OPERANDS
+    The following operand is supported:
+
+    filename    A file upon which a command is applied.
+
+
+USAGE
+    Specify one of the commands and this script will perform that command on 
+    the latest (newest) file.
+
+    For the grep command, you may specify search patterns with the "-A" option,
+    and flags may be specified with the "-F" option.  Both options may be used
+    multiple times.
+
+INSTALLATION
+    Several two-character commands in the form of symbolic links can be
+    installed, making this command easier to use.  When running the "Latest"
+    command, the "-I" option can be used to have this script create them for
+    you.  These are:
+
+          LC - Latest cat  (uses cat)
+          LE - Latest edit (uses vi)
+          LF - Latest find (uses echo)
+          LG - Latest grep (uses grep)
+          LH - Latest hexd (uses hexd*)
+          LL - Latest less (uses less)
+          LM - Latest more (uses more)
+          LP - Latest pg   (uses pg*)
+          LR - Latest pcregrep (uses pcregrep**)
+          LT - Latest tail (uses tail -f)
+          LV - Latest view (uses view)
+          LX - Latest Hexd (uses Hexd*)
+
+    By default, this script looks in your HOME directory for a directory named
+    "bin". When you specify the "-I" option, this script will attempt to create
+    this directory and install the several two-letter commands in that
+    directory. You can also specify a different directory with the "-B" option.
+    For best results, specify a full path to the directory.
+
+EXAMPLES
+    Example 1: Listing the newest "*.c" module:
+
+         Latest *.c
+
+
+    Example 2: "Edit" (vi) the newest "*.log" file:
+
+         LE *.log
+
+
+    Example 3: Search for text (using pcregrep) in the newest "*.ksh" file,
+    passing flags and arguments:
+
+         LR -F -n -A foo *.ksh
+
+
+    Example 4: Search for text (using grep) in the newest "*.ksh" file, passing
+    flags and arguments:
+
+         LG -F -n -A foo *.ksh
+
+
+    Example 5: Another way to search for text (grep) in the newest "*.ksh" file
+    by using KornShell (ksh(1)) syntax:
+
+         grep -in foo \$(Latest \*.ksh)
+
+
+ENVIRONMENT VARIABLES
+    The following environment variable must be set:
+
+    NAWK     This should be set to the full path of nawk(1), awk(1), or a
+             similar program.
+
+
+EXIT STATUS
+    The following exit values are returned:
+
+      0      Successful completion.
+
+    > 0      An error occurred.
+
+    < 0      An internal error occurred.
+
+
+FILES
+    There are no external files used, other than those specified as input 
+    arguments.
+
+SEE ALSO
+    cat(1), echo(1), ls(1B), find(1), grep(1), less(1), more(1), pcregrep(1),
+    pg(1), tail(1), test(1), vi(1), view(1)
+
+NOTES
+    Commands marked with an asterisk (*) may not be available on your system.
+    If you would like a working executable, email me at kooth@coopermktg.com.
+
+    Commands marked with two asterisks (**) will only exist if your System
+    Administrator has installed the PCRE package.
+EOF
+
+	}
+		#	Help()
+
+
+InstallLink()
+	{
+	typeset -i rc=0
+
+	ln ~/bin/Latest ${DestBin}/$1
+
+	rc=$?
+
+	return ${rc}
+
+	}
+		#	InstallLink()
+
+
+InstallLinks()
+	{
+	typeset -i bContinue=1
+
+	typeset -i ilrc=0
+
+	typeset -i lcrc=0
+
+	typeset -i rc=0
+
+	typeset -i rmrc=0
+
+	typeset -i rrc=0
+
+	typeset -i bDoRemove=0
+
+	typeset -i bFatalError=0
+
+	typeset -i bTryInstall=0
+
+	if [ ! -d ${DestBin} ]
+	then
+		echo "${DestBin} does not exist: Trying to create it now ..."
+
+		if [ ${JustShow} -eq 1 ]
+		then
+			echo "mkdir -p ${DestBin}"
+		else
+			mkdir -p ${DestBin}
+		fi
+
+		rc=$?
+
+		if [ $rc -eq 0 ]
+		then
+			echo "Successfully created \"${DestBin}\"."
+		else
+			echo "Error ${rc} detected while trying to create \c"
+
+			echo "${DestBin}!"
+
+			bContinue=0
+
+			bFatalError=1
+
+		fi
+
+	else
+		echo "${DestBin} was previously created."
+
+	fi
+
+	if [ ${bContinue} -eq 1 ]
+	then
+		Delimiter=10
+
+		Cmds="$(BuildCmds)"
+
+		for C in ${Cmds}
+		do
+			bDoRemove=0
+
+			bTryInstall=0
+
+			LinkToCheck="${DestBin}/$C"
+
+			CheckLink ${LinkToCheck}
+
+			lcrc=$?
+
+			case ${lcrc} in
+				 0 )
+					printf "%s is not installed.\n" ${LinkToCheck}
+
+					bTryInstall=1
+
+					;;
+
+
+				${ENOEXEC} )
+					printf "%s is not executable.\n" ${LinkToCheck}
+
+					bTryInstall=1
+
+					bDoRemove=1
+
+					;;
+
+
+				${EEXIST} )
+					printf "%s is installed, and is the same file.\n" \
+						${LinkToCheck}
+
+					if [ ${bGlobalForce} -eq 1 ]
+					then
+						bTryInstall=1
+
+						bDoRemove=1
+
+						printf "Forcing the overwriting of %s ...\n" \
+							${LinkToCheck}
+					fi
+
+					;;
+
+
+				${EBADRQC} )
+					printf "%s is installed, but it is not the same file.\n" \
+						${LinkToCheck}
+
+					if [ ${bGlobalForce} -eq 1 ]
+					then
+						bTryInstall=1
+
+						bDoRemove=1
+
+						printf "Forcing the overwriting of %s ...\n" \
+							${LinkToCheck}
+					fi
+
+					;;
+
+					
+				* )
+					printf "Weird error: %d!\n" ${lcrc}
+
+					bTryInstall=0
+
+					bContinue=0
+
+					;;
+
+			esac
+
+			if [ ${bDoRemove} -eq 1 ]
+			then
+				printf "Trying to remove old copy of %s now ...\n" \
+					${LinkToCheck}
+
+				if [ ${JustShow} -eq 1 ]
+				then
+					echo "rm -f $C"
+				else
+					rm -f $C
+				fi
+
+				rmrc=$?
+
+				if [ ${rmrc} -eq 0 ]
+				then
+					echo "${LinkToCheck} has been removed."
+				else
+					printf "Error %d detected in removing %s.\n" \
+						${rmrc} ${LinkToCheck}!
+
+					bContinue=0
+
+					break
+
+				fi
+
+			fi
+
+			if [ ${bTryInstall} -eq 1 ]
+			then
+				printf "Trying to install %s now ...\n" ${LinkToCheck}
+
+				if [ ${JustShow} -eq 1 ]
+				then
+					echo "InstallLink $C"
+				else
+					InstallLink $C
+				fi
+
+				ilrc=$?
+
+				if [ ${ilrc} -eq 0 ]
+				then
+					echo "${LinkToCheck} has been installed."
+				else
+					printf "Error %d detected in installing %s.\n" \
+						${ilrc} ${LinkToCheck}!
+
+					bContinue=0
+
+					break
+
+				fi
+
+			else
+				printf "Skipping the installation of %s ...\n" ${LinkToCheck}
+			fi
+
+		done
+
+	fi
+
+	return ${rc}
+
+	}
+		#	InstallLinks()
+
+
+LookupReal()
+	{
+	echo "${1}" | ${NAWK} '
+		{
+		if( 1 == NR )
+			{
+			Funk = "LookupReal()";
+
+			if( Debug >= 1 )
+				printf( "%s: Beginning ...\n", Funk ) >> Log;
+
+			DQ = sprintf( "%c", 34 );
+
+			if( Debug >= 9 )
+				printf( "\tGoing to split CmdMap (%s) ...\n", CmdMap ) >> Log;
+
+			MapCount = split( CmdMap, Map, "|" );
+
+			if( Debug >= 9 )
+				printf( "\t\tsplit() returned %d.\n", MapCount ) >> Log;
+
+			if( ! length( Map[ MapCount ] ) )
+				{
+				MapCount--;
+
+				if( Debug >= 1 )
+					{
+					printf( "\n\tThe last entry is blank, so I will " ) >> Log;
+
+					printf( "adjust the count to %d ...\n\n", MapCount ) >> Log;
+
+					}	#	if( Debug >= 1 )
+
+				}	#	if( ! length( Map[ MapCount ] ) )
+
+			if( Debug >= 9 )
+				{
+				printf( "\t%s: Full dump of %d entries follows:\n",
+					Funk, MapCount ) >> Log;
+
+				for( i = 1; i <= MapCount; i++ )
+					{
+					printf( "\t\tMap[ %d ] = <%s>\n", i, Map[ i ] ) >> Log;
+
+					}	#	for( i <= NF )
+
+				printf( "\t%s: End of full dump.\n\n", Funk ) >> Log;
+
+				}	#	if( Debug >= 9 )
+
+			if( 10 == Delimiter )
+				{
+				DelimiterChar = 10;
+
+				DelimiterString = "\n";
+
+				}	#	if( 10 == Delimiter )
+			else
+				{
+				DelimiterChar = 32;
+
+				DelimiterString = " ";
+
+				}	#	if( 10 != Delimiter )
+
+			bFound = 1;
+
+			}	#	if( 1 == NR )
+
+	########################################################################
+	#                                  M A I N                             #
+	########################################################################
+
+		sFunk = sprintf( "\t%s - LN %d", Funk, NR );
+
+		if( Debug >= 9 )
+			{
+			printf( "Input:\n[%s]\n", $0 ) >> Log;
+
+			printf( "%s: Full dump of %d field(s) follows:\n",
+				sFunk, NF ) >> Log;
+
+			for( i = 1; i <= NF; i++ )
+				{
+				printf( "\t\tField[ %d ] = <%s>\n", i, $i ) >> Log;
+
+				}	#	for( i <= NF )
+
+			printf( "%s: End of full dump.\n\n", sFunk ) >> Log;
+
+			}	#	if( Debug >= 9 )
+
+		Command = $1;
+
+		if( Debug >= 3 )
+			{
+			printf( "\t%s: Command = [%s]\n", Funk, Command ) >> Log;
+
+			}	#	if( Debug >= 3 )
+
+		#	Do the lookup here:
+
+		bFound = 0;
+
+		for( i = 1; ! bFound && i <= MapCount; i++ )
+			{
+			Arg = Map[ i ];
+
+			if( Debug >= 9 )
+				printf( "\t\tMap[ %d ] = [%s]\n",
+					i, Map[ i ] ) >> Log;
+
+			if( match( Arg, Command ) )
+				{
+				bFound = 1;
+
+				if( Debug >= 9 )
+					printf( "\t\tMatched %c%s%c!\n",
+						DQ, Command, DQ ) >> Log;
+
+				Real = "";
+
+				SubCount = split( Arg, SubMap, "=" );
+
+				if( SubCount )
+					{
+					if( Debug >= 9 )
+						printf( "%s: Full dump of %d entries follows:\n",
+							sFunk, SubCount ) >> Log;
+
+					for( j = 1; j <= SubCount; j++ )
+						{
+						if( Debug >= 9 )
+							{
+							printf( "\t\t\tSubMap[ %d ] = (%s)\n",
+								j, SubMap[ j ] ) >> Log;
+
+							}	#	if( Debug >= 9 )
+
+						}	#	for( j <= SubCount )
+
+					if( Debug >= 9 )
+						printf( "%s: End of full dump.\n\n", sFunk ) >> Log;
+
+					Real = SubMap[ SubCount ];
+
+					}	#	if( SubCount )	
+				else
+					{
+					printf( "\t\t\tsplit(%s) failed: Weird format?\n",
+						Arg ) >> Log;
+
+					}	#	if( ! SubCount )	
+
+				}	#	if( Command ~ Arg )	
+
+			}	#	for( i <= MapCount )
+
+		}
+			#	main()
+
+	END \
+		{
+		if( length( Real ) )
+			{
+			#	ACTUAL OUTPUT:
+
+			printf( "%s\n", Real );
+
+			if( Debug >= 1 )
+				printf( "%s: length( %s ) = %d.  This is a good thing.\n",
+					Funk, Real, length( Real ) ) >> Log;
+
+			}	#	if( length( Real ) )
+		else
+			{
+			if( Debug >= 1 )
+				printf( "%s: Did not find a command for %c%s%c!\n",
+					Funk, DQ, Command, DQ ) >> Log;
+
+			}	#	if( ! length( Real ) )
+
+		if( Debug >= 1 )
+			printf( "%s: Ending.\n\n", Funk ) >> Log;
+
+		}' CmdMap="${CmdMap}" Debug=${Debug} Log=${Log}
+
+	}
+		#	LookupReal()
+
+
+SetPagerOptions()
+	{
+	typeset PAGER_NAME=$(basename ${PAGER})
+
+	case ${PAGER_NAME} in
+		less )
+			PagerOpts="-P ${TheFile} -> "
+
+			;;
+
+
+		more )
+			PagerOpts=
+
+
+			;;
+
+
+		pg )
+			PagerOpts="-p ${TheFile} -> "
+
+			;;
+
+
+		* )
+			:
+
+			;;
+
+
+	esac
+
+	if [ ${Debug} -ge 1 ]
+	then
+		printf "PagerOpts: [%s]\n" "${PagerOpts}" >> ${Log}
+	fi
+
+	}
+		#	SetPagerOptions()
+
+
+################################################################################
+#                                   M A I N                                    #
+################################################################################
+
+typeset Script=$(basename $0)
+
+typeset Log=${Script}.log
+
+if [ -z "${PAGER}" ]
+then
+	PAGER=less
+fi
+
+if [ ! -d ${HOME}/logs ]
+then
+	mkdir ${HOME}/logs
+fi
+
+if [ -d ${HOME}/logs ]
+then
+	Log="${HOME}/logs/${Log}"
+fi
+
+Options=":A:B:IP:F:d:fhjt:x"
+
+
+#	Errors:
+
+typeset -i ENOEXEC=8	# ENOEXEC: The file is not executable
+
+typeset -i EEXIST=17	# EEXIST:  The file is an exact match for "Latest"
+
+typeset -i EBADRQC=54	# EBADRQC: The file is not a match for "Latest"
+
+
+#	Booleans:
+
+typeset -i bDidDirs=0
+
+typeset -i bGlobalForce=0
+
+
+typeset -i bDoInstallDefault=0
+
+typeset -i bDoInstall=${bDoInstallDefault}
+
+
+#	Ints:
+
+typeset -i DebugDefault=0
+
+typeset -i Debug=${DebugDefault}
+
+
+typeset -i JustShowDefault=0
+
+typeset -i JustShow=${JustShowDefault}
+
+
+typeset -i ToShift=0
+
+typeset -i rc=0
+
+
+#	Strings:
+
+ArgList=
+
+DefaultCmds="LC LE LF LG LH LL LM LP LR LT LV LX DC DE DF DL"
+
+Cmds="LC LE LF LG LH LL LM LP LT LV LX"
+
+RealCmds="cat vi find grep hexd less more pcregrep pg tail view Hexd"
+
+
+DefaultDestBin=${HOME}/bin
+
+DestBin=${DefaultDestBin}
+
+
+FlagList=
+
+Latest="Latest"
+
+Type=-f
+
+
+
+while getopts ${Options} c
+do
+	case $c in
+		d )
+			Debug=${OPTARG}
+
+			ToShift=$((ToShift + 2))
+
+			;;
+
+		h )
+			Help | ${PAGER}
+
+			exit 0
+
+			;;
+
+		: )
+			;;
+
+		? )
+			;;
+
+		* )
+			;;
+
+	esac
+
+done
+
+OPTIND=1
+
+
+if [ ${Debug} -ge 1 ]
+then
+	rm -f ${Log}
+
+	echo "${Script}: Starting at $(date '+%d-%b-%Y %T') ..." >> ${Log}
+fi
+
+if [ ${Debug} -ge 9 ]
+then
+	echo "CLOPTS: $*" >> ${Log}
+
+	echo "Argc: $#" >> ${Log}
+fi
+
+while getopts ${Options} c
+do
+	if [ ${Debug} -ge 9 ]
+	then
+		echo "c: $c; OPTIND: ${OPTIND}; OPTARG: ${OPTARG}" >> ${Log}
+
+	fi
+
+	case $c in
+		A )
+			AddToArgList "${OPTARG}"
+
+			ToShift=$((ToShift + 2))
+
+			;;
+
+
+		B )
+			DestBin="${OPTARG}"
+
+			ToShift=$((ToShift + 2))
+
+			;;
+
+
+		F )
+			AddToFlagList "${OPTARG}"
+
+			ToShift=$((ToShift + 2))
+
+			;;
+
+
+		I )
+			bDoInstall=1
+
+			ToShift=$((ToShift + 1))
+
+			;;
+
+
+		P )
+			PAGER="${OPTARG}"
+
+			ToShift=$((ToShift + 2))
+
+			;;
+
+
+		d | h )		#	(Handled in the first getopts(1) loop above)
+			:
+
+			;;
+
+
+		f )
+			bGlobalForce=1
+
+			ToShift=$((ToShift + 1))
+
+			;;
+
+
+
+		j )
+			JustShow=1
+
+			ToShift=$((ToShift + 1))
+
+			;;
+
+
+		t )
+			Type=$(FixType ${OPTARG})
+
+			ToShift=$((ToShift + 2))
+
+			;;
+
+
+		: )
+			case ${OPTARG} in
+				B | P | t | * )
+					echo "Expected an argument for option ${OPTARG}!"
+
+					;;
+
+			esac
+
+			
+			;;
+
+
+		x )
+			Delimiter=32
+
+			BuildCmds
+
+			exit 0
+
+			;;
+
+
+		? )
+			echo "Invalid argument ${OPTARG}!"
+
+			;;
+
+
+		* )
+			echo "Invalid argument for argument number ${OPTIND}!"
+
+			;;
+
+
+	esac
+
+done
+
+
+if [ ${Debug} -ge 9 ]
+then
+	echo "Outside - c: $c; OPTIND: ${OPTIND}; OPTARG: ${OPTARG}" >> ${Log}
+
+	echo "CLOPTS: $*" >> ${Log}
+
+	echo "Argc: $#" >> ${Log}
+
+	echo "bGlobalForce: ${bGlobalForce}" >> ${Log}
+
+	echo "Type: ${Type}" >> ${Log}
+
+	echo "ToShift: ${ToShift}" >> ${Log}
+
+fi
+
+typeset -i Shifting=0
+
+while [ ${Shifting} -lt ${ToShift} ]
+do
+	shift
+
+	Shifting=$((Shifting + 1))
+
+done
+
+
+if [ ${Debug} -ge 9 ]
+then
+	echo "Argc: $#" >> ${Log}
+
+fi
+
+
+
+#	Now do the find:
+
+
+FindFile $*
+
+
+if [ ${Debug} -ge 9 ]
+then
+	echo "TheFile: ${TheFile}" >> ${Log}
+fi
+
+
+case ${Script} in
+	"Latest" )
+		LatestChksum=$(Chksum ${DestBin}/Latest)
+
+		if [ ${bDoInstall} -eq 1 ]
+		then
+			InstallLinks
+
+			rc=$?
+
+			exit ${rc}
+
+		else
+			Cmd="echo"
+
+		fi
+
+		;;
+
+
+	D? )
+		Type="-d"
+		
+		;;
+
+	L? )
+		:
+
+		;;
+
+	* )
+		:
+
+		;;
+
+esac
+
+
+#	Check to see if we're dealing with a directory:
+
+if [ "-d" = ${Type} ]
+then
+	bDidDirs=1
+
+	case ${Script} in
+		"DC" )			 #	cd (Does NOT work!)
+			Cmd="exec cd " 
+
+			;;
+
+
+		"DE" )			#	export (Does NOT work!)
+			#Cmd="eval export DEVAR="
+
+			Cmd=$(echo ${TheFile} | ${NAWK} '
+				{
+				DQ = sprintf( "%c", 34 );
+
+				printf( "eval export %s=%c%s%c", Var, DQ, $1, DQ );
+
+				}' Var="DEVAR")
+
+			TheFile=
+
+			;;
+
+
+		"DF" )			#	Echo
+			Cmd="echo"
+
+			;;
+
+
+		"DL" )			#	ls
+			Cmd="ls"
+
+			;;
+
+
+		* )
+			Cmd="echo"
+
+			;;
+
+	esac
+
+
+	if [ -n "${FlagList}" ]
+	then
+		Cmd="${Cmd} ${FlagList}"
+	fi
+
+	if [ -n "${ArgList}" ]
+	then
+		Cmd="${Cmd} ${ArgList}"
+	fi
+
+	if [ ${Debug} -ge 9 ]
+	then
+		printf "Cmd: [%s]\n" "${Cmd}" >> ${Log}
+
+		printf "TheFile: [%s]\n" "${TheFile}" >> ${Log}
+
+		printf "The whole thing: [%s %s]\n" "${Cmd}" "${TheFile}" >> ${Log}
+
+	fi
+
+	if [ ${JustShow} -eq 1 ]
+	then
+		echo "${Cmd} ${TheFile}"
+
+		rc=$?
+	else
+		${Cmd} ${TheFile}
+
+		rc=$?
+	fi
+
+
+elif [ ${Type} "${TheFile}" ]
+then
+	case ${Script} in
+		"LC" )
+			Cmd="cat"
+
+			;;
+
+
+		"LE" )
+			Host=$(uname -n)
+
+			if [ ${Host} = "fedora-think.c2domain" ]
+			then
+				Cmd="/usr/local/bin/vim -C"
+
+			else
+				Cmd=vi
+			fi
+
+			if [ ${Debug} -ge 9 ]
+			then
+				printf "LE: Cmd: [%s]\n" "${Cmd}" >> ${Log}
+			fi
+
+			;;
+
+
+		"LF" )
+			Cmd="echo"
+
+			;;
+
+
+		"LG" )
+			Cmd="grep"
+
+			if [ -n "${FlagList}" ]
+			then
+				Cmd="${Cmd} ${FlagList}"
+			fi
+
+			if [ -n "${ArgList}" ]
+			then
+				Cmd="${Cmd} ${ArgList}"
+			fi
+
+			if [ ${Debug} -ge 9 ]
+			then
+				printf "LG: Cmd: [%s]\n" "${Cmd}" >> ${Log}
+			fi
+
+			;;
+
+
+		"LH" )
+			Cmd="eval hexd <"
+
+			SetPagerOptions
+
+			TheFile="${TheFile} | ${PAGER} \"${PagerOpts} \""
+
+			;;
+
+
+		"LL" )
+			Cmd="less"
+
+			;;
+
+
+		"LM" )
+			Cmd="more"
+
+			;;
+
+
+		"LP" )
+			Cmd="pg"
+
+			SetPagerOptions
+
+			;;
+
+
+		"LR" )
+			Cmd="pcregrep"
+
+			if [ -n "${FlagList}" ]
+			then
+				Cmd="${Cmd} ${FlagList}"
+			fi
+
+			if [ -n "${ArgList}" ]
+			then
+				Cmd="${Cmd} ${ArgList}"
+			fi
+
+			if [ ${Debug} -ge 9 ]
+			then
+				printf "LR: Cmd: [%s]\n" "${Cmd}" >> ${Log}
+			fi
+
+			;;
+
+
+		"LT" )
+			Cmd="tail -f "
+
+			;;
+
+
+		"LV" )
+			Cmd="view"
+
+			;;
+
+
+		"LX" )
+			Cmd="eval Hexd <"
+
+			SetPagerOptions
+
+			TheFile="${TheFile} | ${PAGER} \"${PagerOpts} \""
+
+			;;
+
+
+		* )
+			Cmd="echo"
+
+			;;
+
+	esac
+
+	if [ ${JustShow} -eq 1 ]
+	then
+		echo "${Cmd} ${TheFile}"
+
+		rc=$?
+	else
+		${Cmd} ${TheFile}
+
+		rc=$?
+	fi
+
+elif [ bDidDirs -eq 1 ]
+then
+	rc=0
+else
+	echo "Can't find ${File}!"
+
+	rc=2	#	ENOENT
+
+fi
+
+
+if [ ${Debug} -ge 1 ]
+then
+	echo "${Script}: Ending at $(date '+%d-%b-%Y %T')." >> ${Log}
+fi
+
+return "${rc}"
+
